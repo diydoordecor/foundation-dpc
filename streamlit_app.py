@@ -40,8 +40,17 @@ def main():
         products_on_hand['Product'] = products_on_hand.apply(preprocess_product, axis=1, 
             columns={'name': 'Brand', 'description': 'Description', 'package_qty': 'Package Qty', 'form': 'Units'}, ignore_prefix='1 x ')
 
+        # Handle missing Product columns by creating placeholder values
+        if 'Product' not in dispensed_2_months.columns:
+            dispensed_2_months['Product'] = dispensed_2_months.apply(lambda row: preprocess_product(row, 
+                {'name': 'Generic Name', 'description': 'Description', 'package_qty': 'Package Qty', 'form': 'Form'}, ignore_prefix='1 x '), axis=1)
+
+        if 'Product' not in dispensed_6_months.columns:
+            dispensed_6_months['Product'] = dispensed_6_months.apply(lambda row: preprocess_product(row, 
+                {'name': 'Generic Name', 'description': 'Description', 'package_qty': 'Package Qty', 'form': 'Form'}, ignore_prefix='1 x '), axis=1)
+
         # Merge and calculate quantities
-        combined_data = pd.merge(dispensed_2_months, dispensed_6_months, on='Product', suffixes=(' Past 2 Months', ' Past 6 Months'))
+        combined_data = pd.merge(dispensed_2_months, dispensed_6_months, on='Product', suffixes=(' Past 2 Months', ' Past 6 Months'), how='outer')
         combined_data = pd.merge(combined_data, products_on_hand[['Product', 'On Hand']], on='Product', how='left')
         combined_data = pd.merge(combined_data, meds_on_hand[['Product', 'Containers']], on='Product', how='left')
 
