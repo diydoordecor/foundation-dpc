@@ -53,6 +53,7 @@ def main():
         # Rename for consistency
         dispensed_2_months = dispensed_2_months.rename(columns={'containers': 'total_units_past_2_months'})
         dispensed_6_months = dispensed_6_months.rename(columns={'containers': 'total_units_past_6_months'})
+        meds_on_hand = meds_on_hand.rename(columns={'containers': 'on_hand'})
 
         # Merge and calculate quantities
         combined_data = pd.merge(
@@ -62,7 +63,16 @@ def main():
             how='outer'
         )
         combined_data = pd.merge(combined_data, products_on_hand[['product', 'on_hand']], on='product', how='left')
-        combined_data = pd.merge(combined_data, meds_on_hand[['product', 'containers']], on='product', how='left')
+        combined_data = pd.merge(combined_data, meds_on_hand[['product', 'on_hand']], on='product', how='left', suffixes=('', '_meds'))
+
+        # Resolve potential conflicts in `on_hand`
+        combined_data['on_hand'] = combined_data['on_hand'].combine_first(combined_data['on_hand_meds'])
+        combined_data.drop(columns=['on_hand_meds'], inplace=True)
+
+        # Debug unmatched products
+        unmatched_products = meds_on_hand[~meds_on_hand['product'].isin(combined_data['product'])]
+        if not unmatched_products.empty:
+            st.write("Unmatched Products in Meds on Hand:", unmatched_products[['product', 'on_hand']])
 
         # Add editable column for target overrides
         if 'target_qty_on_hand_override' not in combined_data.columns:
@@ -81,7 +91,7 @@ def main():
 
         # Display results
         st.write("Calculated Quantities to Order:")
-        st.dataframe(combined_data[['product', 'qty_to_order', 'containers', 'total_units_past_2_months', 
+        st.dataframe(combined_data[['product', 'qty_to_order', 'total_units_past_2_months', 
                                     'total_units_past_6_months', 'on_hand', 'target_qty_on_hand_override']])
 
         # Download Option
